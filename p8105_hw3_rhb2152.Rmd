@@ -1,0 +1,119 @@
+---
+title: "P8105 Homework 3"
+author: "Riyadh Baksh"
+date: "`r Sys.Date()`"
+output: github_document
+---
+
+# Problem 1
+
+The data contained in `ny_noaa` provides information about the weather in New York on various dates. There are a total of 7 variables (columns) and 2,595,176 observations (rows). For each date, there are 5 metrics, including precipitation, snow, snow depth, maximum temperature, and minimum temperature. There is also an id variable. At a glance, there is a lot of missing data, across many variables.
+
+```{r, message=FALSE}
+library(tidyverse)
+library(p8105.datasets)
+
+data("ny_noaa")
+
+ny_noaa
+```
+
+The dates are separated into 3 columns representing the year, month, and date. The units are changed to more commonly used values. Precipitation is converted to mm, instead of tenths of mm. Temperature is reported in Celsius, instead of tenths of Celsius. Snow depth is reported in inches, instead of mm. These were all done because of normal conventions. Snowfall is reported in tenths of inches because often it is a small amount of snow that falls per period of time.
+
+```{r}
+
+ny_noaa =
+  mutate(ny_noaa,
+         year = year(date),
+         month = month(date),
+         day = day(date),
+         prcp = as.numeric(prcp)/10, # convert to mm from tenths of mm
+         tmax = as.numeric(tmax)/10, # convert to C from tenths of C
+         tmin = as.numeric(tmin)/10, # convert to C from tenths of C
+         snow = as.numeric(snow)/25.4*10, # convert to tenths of inches from mm
+         snwd = as.numeric(snwd)/25.4 # convert to inches from mm
+         )
+
+```
+
+The average snowfall is `r round(mean(ny_noaa$snow,na.rm=TRUE),2)` tenths of an inch. This makes sense since for much of the year, there is no snowfall, so it brings down the average.
+
+The plots below show the average max temperature in January and July, across all stations, for each year. There is a lot of scatter, but roughly in January the average max temperature increased and then plateaued, whereas for July, it stayed about the same. That being said, there are a lot of points that don't follow this pattern. Due to this large scatter, it's difficult to say whether there are outliers, since there isn't a clear pattern.
+
+```{r, message=FALSE}
+
+library(patchwork)
+
+january =
+  ny_noaa |>
+  drop_na(tmax) |>
+  filter(month==1) |>
+  group_by(year) |>
+  summarize(mean_tmax = mean(tmax, na.rm=TRUE)) |>
+  ggplot(aes(x=year,y=mean_tmax)) +
+    geom_point() +
+    geom_smooth(se=FALSE) +
+    labs(
+      title = "January Temperature",
+      x = "Year",
+      y = "Average Maximum Temperature (C)"
+    )
+
+july =
+  ny_noaa |>
+  drop_na(tmax) |>
+  filter(month==7) |>
+  group_by(year) |>
+  summarize(mean_tmax = mean(tmax, na.rm=TRUE)) |>
+  ggplot(aes(x=year,y=mean_tmax)) +
+    geom_point() +
+    geom_smooth(se=FALSE) +
+    labs(
+      title = "July Temperature",
+      x = "Year",
+      y = "Average Maximum Temperature (C)"
+    )
+
+(january + july)
+
+```
+
+```{r, message=FALSE}
+
+tmax_tmin =
+  ny_noaa |>
+  drop_na(tmax, tmin) |>
+  ggplot(aes(x=tmax,y=tmin)) +
+    geom_point(alpha = 0.5) +
+    geom_smooth(se=FALSE) +
+    labs(
+      title = "Temperature Plot",
+      x = "Minimum Temperature (C)",
+      y = "Maximum Temperature (C)"
+    )
+
+snowfall =
+  ny_noaa |>
+  select(year,snow) |>
+  drop_na(snow) |>
+  filter(snow>0, snow<100) |>
+  ggplot(aes(x=year,y=snow)) +
+    geom_boxplot(aes(group=year)) +
+    labs(
+      title = "Snowfall Distribution",
+      x = "Year",
+      y = "Snowfall (Tenths of Inch)"
+    )
+
+(tmax_tmin + snowfall)
+
+```
+
+# Problem 2
+
+
+
+
+
+# Problem 3
+
