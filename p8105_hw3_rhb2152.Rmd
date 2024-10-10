@@ -111,9 +111,150 @@ snowfall =
 
 # Problem 2
 
+The demographic dataset is loaded and tidied below.
 
+```{r}
+demo = 
+  read_csv(file = "data/nhanes_covar.csv", skip=4) |>
+  janitor::clean_names() |>
+  mutate(
+    sex = case_match(
+      sex,
+      1 ~ "male",
+      2 ~ "female"
+    ),
+    education = case_match(
+      education,
+      1 ~ "less than high school",
+      2 ~ "high school equivalent",
+      3 ~ "more than high school"
+    ),
+    sex = as.factor(sex),
+    education = as.factor(education),
+    age = as.integer(age)
+  )
 
+demo
+```
 
+The accelerometer data is loaded and tided below.
+
+```{r}
+accel = 
+  read_csv(file = "data/nhanes_accel.csv") |>
+  janitor::clean_names()
+```
+
+Next, the two datasets are combined and further tidying is done. This now prepares the final dataset in `mims`.
+
+```{r}
+mims =
+  left_join(demo,accel,by="seqn") |>
+  drop_na(sex:education) |>
+  filter(age>=21) |>
+  pivot_longer(
+    min1:last_col(),
+    names_to = "minute",
+    names_prefix = "min",
+    values_to = "mims"
+  )
+
+mims
+```
+
+The table below shows the number of men and women in each education category. There are more males in high school equivalent, whereas about the same male and female in the other educations. There are overall more people in "more than high school" than "high school equivalent" than "less than high school".
+
+```{r}
+demo |>
+  drop_na() |>
+  janitor::tabyl(education, sex)
+```
+
+The grouped boxplot below shows the age distribution for male and female at each education level. There is a lot of spread, but the median age is lowest for those with "more than high school" education. Males have a median age younger than females for all educations, except "more than high school".
+
+```{r}
+demo |>
+  select(education,sex,age) |>
+  drop_na() |>
+  ggplot(aes(x=education,y=age,fill=sex)) +
+    geom_boxplot() +
+    labs(
+      title = "Age Distribution",
+      x = "Education Level",
+      y = "Age"
+    )
+```
+
+The plots below show the sum of the MIMS for each individual, across ages, between male and female, and for each education level. In general, as you get older, the total MIMS decreases. For "less than high school", males typically have higher MIMS (except at young ages), whereas for the other education levels, females typically have higher MIMS.
+
+```{r, message=FALSE}
+less =
+  mims |>
+  filter(education=="less than high school") |>
+  aggregate(mims ~ seqn, sum) |>
+  left_join(demo,by="seqn") |>
+  ggplot(aes(x=age,y=mims)) +
+    geom_point(aes(color=sex)) +
+    geom_smooth(aes(color=sex),se=FALSE) +
+    labs(title="Less than high school")
+
+more =
+  mims |>
+  filter(education=="more than high school") |>
+  aggregate(mims ~ seqn, sum) |>
+  left_join(demo,by="seqn") |>
+  ggplot(aes(x=age,y=mims)) +
+    geom_point(aes(color=sex)) +
+    geom_smooth(aes(color=sex),se=FALSE) +
+    labs(title="More than high school")
+
+equiv =
+  mims |>
+  filter(education=="high school equivalent") |>
+  aggregate(mims ~ seqn, sum) |>
+  left_join(demo,by="seqn") |>
+  ggplot(aes(x=age,y=mims)) +
+    geom_point(aes(color=sex)) +
+    geom_smooth(aes(color=sex),se=FALSE) +
+    labs(title="High school equivalent")
+
+(less+equiv)/more
+
+```
+
+The plots below show the MIMS value at each hour for both male and female, for different education levels, but across all ages. In general, females have higher MIMS throughout the day. Across all educations, MIMS decreases than increases to a peak in the middle, then decreases again. This could reflect the decreasing movement as people are falling asleep, then the greater movement that peaks in the middle of the day, then the decreasing movement towards the night.
+
+```{r, message=FALSE}
+less =
+  mims |>
+  filter(education=="less than high school") |>
+  ggplot(aes(x=as.numeric(minute)/60,y=mims)) +
+    geom_smooth(aes(color=sex),se=FALSE) +
+    labs(
+      title="Less than high school",
+      x="hour")
+
+more =
+  mims |>
+  filter(education=="more than high school") |>
+  ggplot(aes(x=as.numeric(minute)/60,y=mims)) +
+    geom_smooth(aes(color=sex),se=FALSE) +
+    labs(
+      title="More than high school",
+      x="hour")
+
+equiv =
+  mims |>
+  filter(education=="high school equivalent") |>
+  ggplot(aes(x=as.numeric(minute)/60,y=mims)) +
+    geom_smooth(aes(color=sex),se=FALSE) +
+    labs(
+      title="High school equivalent",
+      x="hour")
+
+(less+equiv)/more
+
+```
 
 # Problem 3
 
