@@ -258,3 +258,115 @@ equiv =
 
 # Problem 3
 
+The datasets are loaded below, cleaned, and tidied. They are combined into one dataset. The resulting dataset `citi` contains 9 variables (columns) and 99,253 observations (rows). The variables include bike type (whether electric or classic), day of week, duration of ride, start and end station names, whether the rider is a member or casual, and the date separated into the month and year.
+
+```{r, message=FALSE}
+Jan20 = 
+  read_csv(file = "data/citibike/Jan 2020 Citi.csv") |>
+  mutate(
+    month="January",
+    year="2020")
+
+Jul20 =
+  read_csv(file = "data/citibike/July 2020 Citi.csv") |>
+  mutate(
+    month="July",
+    year="2020"
+  )
+
+Jan24 = 
+  read_csv(file = "data/citibike/Jan 2024 Citi.csv") |>
+  mutate(
+    month="January",
+    year="2024")
+
+Jul24 =
+  read_csv(file = "data/citibike/July 2024 Citi.csv") |>
+  mutate(
+    month="July",
+    year="2024"
+  )
+
+citi =
+  bind_rows(Jan20, Jul20, Jan24, Jul24) |>
+  janitor::clean_names() |>
+  drop_na()
+```
+
+The table below shows the number of rides for each date by casual and members. Overall, for the same date, there are many more members taking rides, rather than casual riders. In general, January ridership is lower than July, which makes sense as the weather gets warmer, more people would choose to ride a bike.
+
+```{r, message=FALSE}
+citi |>
+  group_by(month, year) |>
+  summarize(
+    members=sum(member_casual=="member"),
+    casuals=sum(member_casual=="casual")
+  )
+```
+
+The table below shows the 5 most popular starting stations, according to the number of rides originating from these stations acorss all months and years.
+
+```{r}
+station_rides = 
+  citi |>
+    group_by(start_station_name) |>
+    summarize(rides=n())
+
+head(arrange(station_rides, desc(rides)), 5)
+```
+Based on the plot below, typically, ride duration increases on the weekends and decreases during the week. Overall, ride duration is higher in July than in January. Further, ride duration was on average longer in 2020 than in 2024.
+
+```{r, message=FALSE}
+bike20 =
+  citi |>
+  filter(year=="2020") |>
+  group_by(month,weekdays=factor(weekdays,levels=c("Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"))) |>
+  summarize(median_duration=median(duration)) |>
+  ggplot(aes(x=weekdays,y=median_duration, color=month)) +
+    geom_point() +
+    labs(
+      title="2020",
+      y="Median Ride Duration",
+      x="Day of Week"
+    ) +
+    theme_classic()
+
+bike24 =
+  citi |>
+  filter(year=="2024") |>
+  group_by(month,weekdays=factor(weekdays,levels=c("Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"))) |>
+  summarize(median_duration=median(duration)) |>
+  ggplot(aes(x=weekdays,y=median_duration, color=month)) +
+    geom_point() +
+    labs(
+      title="2024",
+      y="Median Ride Duration",
+      x="Day of Week"
+    ) +
+    theme_classic()
+    
+bike20/bike24
+```
+
+The plots below show the effect of bike type, membership status, and month, on ride duration in 2024. In general, the distribution is more concentration at lower times in January, than in July. Conversely, in July, there are more longer rides, which stretches the distribution. Interestingly, being a member and using an electric bike also concentrates the ride durations towards the shorter end. In other words, it is more likely to have a shorter ride being a member on an electric bike.
+
+```{r}
+elec =
+  citi |>
+  filter(year=="2024",rideable_type=="electric_bike") |>
+  ggplot(aes(x=duration, fill=month)) +
+    geom_density(alpha = 0.4, adjust=0.5,color="black") +
+    facet_grid(~member_casual) +
+    labs(title="Electric Bike")
+
+reg =
+  citi |>
+  filter(year=="2024",rideable_type=="classic_bike") |>
+  ggplot(aes(x=duration, fill=month)) +
+    geom_density(alpha = 0.4, adjust=0.5,color="black") +
+    facet_grid(~member_casual) +
+    labs(title="Classic Bike")
+
+
+elec/reg
+```
